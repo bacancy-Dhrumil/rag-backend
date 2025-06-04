@@ -1,0 +1,3 @@
+LangChain is a framework for building applications with language models.
+LangChain.js is its JavaScript version. It supports retrieval-augmented generation (RAG), agents, and more.
+This file is part of a RAG demo chatbot using Node.js.
