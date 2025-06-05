@@ -52,9 +52,5 @@ This is the backend for a Retrieval-Augmented Generation (RAG) chatbot using Nod
 node server.js
 ```
 
-## Notes
-- The `chroma_db/chroma.sqlite3` file is ignored by git. Each environment should generate its own database file.
-- For production, ensure you use secure environment variables and review your data ingestion process.
-
 ## License
 ISC 
