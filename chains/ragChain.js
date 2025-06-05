@@ -121,20 +121,7 @@ class RAGChain {
 
   async query(question, courseId) {
     try {
-      // Handle general greetings and non-course questions
-      const generalGreetings = ['hello', 'hi', 'hey', 'hii', 'hiii', 'greetings', 'good morning', 'good afternoon', 'good evening'];
-      const lowerQuestion = question.toLowerCase().trim();
-      
-      // Check if the question is a greeting (including variations)
-      if (generalGreetings.some(greeting => lowerQuestion.includes(greeting))) {
-        const response = "Hello! I'm your course assistant. How can I help you with the course material today?";
-        await ChatHistory.create({
-          courseId,
-          role: 'ai',
-          content: response
-        });
-        return response;
-      }
+      console.log('Starting query process:', { question, courseId });
 
       // Check if course is processed
       const course = await Course.findByPk(courseId);
@@ -149,7 +136,7 @@ class RAGChain {
       // Get relevant documents from Chroma
       const results = await this.collection.query({
         queryTexts: [question],
-        nResults: 5,
+        nResults: 3,  // Get more chunks for better context
         where: { courseId }
       });
 
@@ -160,10 +147,10 @@ class RAGChain {
         content: question
       });
 
-      // If no relevant documents found or relevance score is too low, provide a topic-specific response
-      if (!results.documents[0] || results.documents[0].length === 0 || 
-          (results.distances && results.distances[0] && results.distances[0][0] > 0.8)) {
-        const response = "I apologize, but I can only answer questions about the course material, which is the topic of this course. Your question seems to be about a different topic. Could you please ask a question related to the course material?";
+      // If no relevant documents found
+      if (!results.documents[0] || results.documents[0].length === 0) {
+        console.log('No relevant documents found in transcript');
+        const response = `I can only answer questions about the topics covered in this course.`;
         await ChatHistory.create({
           courseId,
           role: 'ai',
@@ -172,44 +159,52 @@ class RAGChain {
         return response;
       }
 
-      // Combine all relevant context
+      // Combine all relevant content
       const context = results.documents[0].join('\n\n');
-
-      // Generate a better response using ChatOpenAI
-      const prompt = `You are a teaching assistant for a course about ${course.metadata.title || 'the course material'}. 
-      Only answer questions related to ${course.metadata.title || 'the course material'}.
-      If the question is not about ${course.metadata.title || 'the course material'}, respond with: "I apologize, but I can only answer questions about ${course.metadata.title || 'the course material'}, which is the topic of this course. Your question seems to be about a different topic. Could you please ask a question related to ${course.metadata.title || 'the course material'}?"
-
-      Based on the following course content, please provide a clear, concise, and comprehensive answer to the question. 
-      Focus on the most relevant information and present it in a well-structured way.
+      
+      // Let LLM handle both general interactions and specific questions
+      const prompt = `You are a friendly teaching assistant. Your role is to help students understand what topics are covered in this course and answer questions about those topics.
 
       Course Content:
       ${context}
 
-      Question: ${question}
+      Student's Message: ${question}
 
-      Please provide a detailed answer that:
-      1. Directly addresses the question
-      2. Includes key concepts and definitions
-      3. Explains important processes or relationships
-      4. Uses clear, academic language
-      5. Is well-structured and easy to understand`;
+      Your task:
+      1. First, understand what the student is asking:
+         - Are they asking if a specific topic is covered?
+         - Are they asking about a specific topic?
+         - Are they asking about something not in the course?
+
+      2. Then respond appropriately:
+         - For questions about course coverage: Check if the topic is mentioned in the course content and clearly state whether it's covered
+         - For questions about covered topics: Answer using only the course content
+         - For questions about other topics: Politely explain you can only help with course topics
+
+      3. Important rules:
+         - Only use information from the course content
+         - Don't make connections to topics not mentioned
+         - Provide clear and helpful responses
+         - Be friendly and natural in your tone`;
 
       const aiResponse = await this.chatModel.invoke(prompt);
-      
-      // Extract just the content from the AIMessage
-      const response = aiResponse.content;
+      let response = aiResponse.content;
 
-      // Store the response in chat history
+      // Clean up the response
+      response = response
+        .replace(/^Response:\s*/i, '')  // Remove "Response:" prefix
+        .replace(/^Answer:\s*/i, '')    // Remove "Answer:" prefix
+        .replace(/^AI:\s*/i, '')        // Remove "AI:" prefix
+        .trim();                        // Remove extra whitespace
+      
       await ChatHistory.create({
         courseId,
         role: 'ai',
         content: response
       });
-
       return response;
     } catch (error) {
-      console.error('Error querying:', error);
+      console.error('Error in query process:', error);
       throw error;
     }
   }
