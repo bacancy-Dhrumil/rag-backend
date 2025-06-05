@@ -125,6 +125,7 @@ class RAGChain {
 
       // Check if course is processed
       const course = await Course.findByPk(courseId);
+     
       if (!course) {
         throw new Error('Course not found');
       }
@@ -165,6 +166,7 @@ class RAGChain {
       // Let LLM handle both general interactions and specific questions
       const prompt = `You are a friendly teaching assistant. Your role is to help students understand what topics are covered in this course and answer questions about those topics.
 
+      Course Title: ${course.metadata.title}
       Course Content:
       ${context}
 
@@ -172,30 +174,32 @@ class RAGChain {
 
       Your task:
       1. First, understand what the student is asking:
-         - Are they asking if a specific topic is covered?
-         - Are they asking about a specific topic?
-         - Are they asking about something not in the course?
+         - If it's a general question or greetings like "how can you help me?" or "hi": Give a friendly, general response about your role as a teaching assistant
+         - If asking for a summary: Provide a high-level overview of the main topics covered in the course content
+         - If asking about course coverage: Check if the topic is mentioned in the content
+         - If asking about a specific topic: Answer using the course content
+         - If asking about something not in the course: Politely explain you can only help with course topics
 
       2. Then respond appropriately:
+         - For general questions: Explain that you're a teaching assistant who can help with questions about the course content
+         - For summary requests: List the main topics covered in the course content, without diving into specific details
          - For questions about course coverage: Check if the topic is mentioned in the course content and clearly state whether it's covered
          - For questions about covered topics: Answer using only the course content
          - For questions about other topics: Politely explain you can only help with course topics
 
       3. Important rules:
-         - Only use information from the course content
+         - Only use information from the course content when answering specific questions
          - Don't make connections to topics not mentioned
          - Provide clear and helpful responses
-         - Be friendly and natural in your tone`;
+         - Be friendly and natural in your tone
+         - Format your response as a direct answer without any prefixes like "Response:", "Answer:", or "AI:"
+         - Do not repeat the student's question in your response
+         - Start your response directly with the answer
+         - For general questions, explain your role without diving into specific course content
+         - For summary requests, provide a structured overview of main topics`;
 
       const aiResponse = await this.chatModel.invoke(prompt);
-      let response = aiResponse.content;
-
-      // Clean up the response
-      response = response
-        .replace(/^Response:\s*/i, '')  // Remove "Response:" prefix
-        .replace(/^Answer:\s*/i, '')    // Remove "Answer:" prefix
-        .replace(/^AI:\s*/i, '')        // Remove "AI:" prefix
-        .trim();                        // Remove extra whitespace
+      const response = aiResponse.content;
       
       await ChatHistory.create({
         courseId,

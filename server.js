@@ -22,14 +22,14 @@ app.get("/", (req, res) => {
 // Upload transcript and initialize RAG chain
 app.post("/uploadTranscript", async (req, res) => {
   try {
-    const { transcriptText, courseId } = req.body;
+    const { transcriptText, courseId, title } = req.body;
     if (!transcriptText || !courseId) {
       return res.status(400).json({ error: "Missing transcriptText or courseId" });
     }
 
     const newCourseId = await ragChain.addTranscript(transcriptText, {
       courseId,
-      title: `Course ${courseId}`,
+      title,
       dateAdded: new Date().toISOString()
     });
     
