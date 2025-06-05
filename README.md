@@ -14,7 +14,7 @@ This is the backend for a Retrieval-Augmented Generation (RAG) chatbot using Nod
 ## Setup
 1. **Clone the repository:**
    ```sh
-   git clone <your-repo-url>
+   git clone https://github.com/bacancy-Dhrumil/rag-backend
    cd backend
    ```
 2. **Install dependencies:**
